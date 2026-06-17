@@ -4,6 +4,10 @@ from common.models import BaseModel
 from customers.models import Customer
 from resources.models import Washer, Dryer, SupplyPortion, Bag
 
+# TODO: Revisar payment_status, puede quedar inconsistente 
+#       Venta total: $10.00
+#       Pagos registrados: $10.00
+#       payment_status: PENDING
 class Sale(BaseModel):
     class PaymentStatus(models.TextChoices):
         PENDING = 'PENDING', 'Pendiente'
@@ -34,9 +38,11 @@ class Sale(BaseModel):
     @property
     def total(self):
         wash_total = sum(item.subtotal for item in self.wash_items.all())
+        supply_total = sum(item.subtotal for item in self.supply_items.all())
         dry_total = sum(item.subtotal for item in self.dry_items.all())
         bag_total = sum(item.subtotal for item in self.bag_items.all())
-        return wash_total + dry_total + bag_total
+
+        return wash_total + supply_total + dry_total + bag_total
 
     def __str__(self):
         client = str(self.customer) if self.customer else "Consumidor final"
@@ -51,17 +57,16 @@ class SaleWashItem(BaseModel):
 
     @property
     def subtotal(self):
-        supply_total = sum(s.subtotal for s in self.supplies.all())
-        return self.price_charged + suply_total
+        return self.price_charged 
 
     def __str__(self):
         return f"{self.washer.name} - Venta {self.sale_id}"
 
 
-class SaleWashSupply(BaseModel):
-    """Porción de insumo (detergente/suavizante) asociada a un ítem de lavado."""
-    wash_item     = models.ForeignKey(SaleWashItem, on_delete=models.CASCADE, related_name='supplies')
-    portion       = models.ForeignKey(SupplyPortion, on_delete=models.PROTECT)
+class SaleSupplyItem(BaseModel):
+    """Porción de insumo (detergente/suavizante) asociada a una venta."""
+    sale = models.ForeignKey(Sale, on_delete = models.CASCADE, related_name = 'supply_items')
+    supply_portion = models.ForeignKey(SupplyPortion, on_delete=models.PROTECT)
     quantity      = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
     price_charged = models.DecimalField(max_digits=6, decimal_places=2)  # snapshot del precio unitario
 
@@ -70,7 +75,7 @@ class SaleWashSupply(BaseModel):
         return self.price_charged * self.quantity
 
     def __str__(self):
-        return f"{self.portion} x{self.quantity}"
+        return f"{self.supply_portion} x{self.quantity}"
 
 
 class SaleDryItem(BaseModel):

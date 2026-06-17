@@ -1,6 +1,7 @@
 from django.db import models
 from common.models import BaseModel
 
+# --- RESOURCES ---
 class Washer(BaseModel):
     name = models.CharField(max_length = 100)
     capacity = models.CharField(max_length = 50)

@@ -15,7 +15,7 @@ class Washer(BaseModel):
 class Dryer(BaseModel):
     name = models.CharField(max_length = 100)
     price_per_interval = models.DecimalField(max_digits = 6, decimal_places = 2)
-    interval_minutes = models.PositiveIntegerField() 
+    # interval_minutes = models.PositiveIntegerField() 
     is_active = models.BooleanField(default = True)
 
     def __str__(self):
@@ -37,7 +37,7 @@ class Supply(BaseModel):
 class SupplyPortion(BaseModel):
     """ Porciones fijas por precio. Ej: 8oz de detergente = $0.6$"""
     supply = models.ForeignKey(Supply, on_delete = models.PROTECT, related_name = 'portions')
-    quantity_oz = models.DecimalField(max_digits = 5, decimal_places = 2)
+    quantity_oz = models.DecimalField(max_digits = 5, decimal_places = 2) # Cantidad de la porcion en oz (2 oz, 4 oz, 8 oz)
     price = models.DecimalField(max_digits = 6, decimal_places = 2)
     is_active = models.BooleanField(default = True)
 
@@ -45,6 +45,7 @@ class SupplyPortion(BaseModel):
         return f"{self.supply.name} {self.quantity_oz}oz - ${self.price}" 
 
 
+"""
 class GasPurchase(BaseModel):
     purchase_date = models.DateField()
     tank_count = models.PositiveIntegerField()
@@ -57,7 +58,7 @@ class GasPurchase(BaseModel):
     def __str__(self):
         return f"{self.purchase_date} - {self.tank_count} tanques"
 
-
+"""
 
 class Bag(BaseModel):
     """Funda vendible al cliente."""

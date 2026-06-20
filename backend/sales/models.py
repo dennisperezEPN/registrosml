@@ -67,10 +67,13 @@ class SaleSupplyItem(BaseModel):
     """Porción de insumo (detergente/suavizante) asociada a una venta."""
     sale = models.ForeignKey(Sale, on_delete = models.CASCADE, related_name = 'supply_items')
     supply_portion = models.ForeignKey(SupplyPortion, on_delete=models.PROTECT)
-    quantity      = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
+    quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)]) # Cantidad de porciones del suplemento (Ej. 1 porcion de 2 oz, 2 porciones de 4 oz etc.) 
     price_charged = models.DecimalField(max_digits=6, decimal_places=2)  # snapshot del precio unitario
+    cost_snapshot = models.DecimalField(max_digits=6, decimal_places=2)  # snapshot del costo por porcion  
 
     @property
+    # TODO: Cambiar funcion subtotal para que se calcule bien el subtotal. 
+    # Quanitty es el numero de porciones de 2 oz, 4 oz o 8 oz del SupplyItem
     def subtotal(self):
         return self.price_charged * self.quantity
 
@@ -103,6 +106,7 @@ class SaleBagItem(BaseModel):
     bag           = models.ForeignKey(Bag, on_delete=models.PROTECT)
     quantity      = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
     price_charged = models.DecimalField(max_digits=6, decimal_places=2)  # snapshot
+    cost_snapshot = models.DecimalField(max_digits=6, decimal_places=2)  # snapshot del costo
 
     @property
     def subtotal(self):
@@ -126,3 +130,107 @@ class Payment(BaseModel):
     def __str__(self):
         return f"{self.get_method_display()} ${self.amount} - Venta {self.sale_id}"
 
+"""
+
+Cómo queda la lógica
+
+    Detergente / suavizante
+    InventoryItem = producto físico en inventario
+    Supply = suplemento vendible
+    SupplyPortion = presentación o porción vendible
+    SaleSupplyItem = lo vendido
+    InventoryMovement = salida real del inventario
+
+Ejemplo:
+
+    InventoryItem:
+    Detergente líquido, unit: oz
+
+    Supply:
+    Detergente líquido
+
+    SupplyPortion:
+    2 oz, precio $0.50
+
+    SaleSupplyItem:
+    2 porciones, price_charged $1.00, cost_snapshot $0.20
+
+    InventoryMovement:
+    quantity_delta -4 oz
+
+Fundas
+    InventoryItem = funda física en inventario
+    Bag = funda vendible
+    SaleBagItem = fundas vendidas
+    InventoryMovement = salida real del inventario
+
+    Ejemplo:
+
+    SaleBagItem:
+    quantity: 2
+    price_charged: 0.50
+    cost_snapshot: 0.12
+
+    InventoryMovement:
+    quantity_delta: -2
+
+Gas
+
+    El gas queda como inventario general, no asociado a cada secada:
+
+    InventoryItem:
+    Tanque de gas
+    unit: tank
+
+    InventoryPurchase:
+    Compra de 2 tanques
+
+    InventoryMovement:
+    +2 tanques por compra
+    -1 tanque cuando se acaba
+
+    Eso está bien porque decidiste no calcular gas por intervalo.
+
+Recomendación pequeña adicional
+
+    En InventoryMovement, tuviste buena idea agregando:
+
+    sale_supply_item_id int [null]
+    sale_bag_item_id int [null]
+
+    Yo solo aplicaría esta regla en tu lógica de aplicación:
+
+    Si movement_type = purchase:
+      inventory_purchase_id debe tener valor.
+
+    Si movement_type = sale_usage por suplemento:
+      sale_id y sale_supply_item_id deben tener valor.
+
+    Si movement_type = sale_usage por funda:
+      sale_id y sale_bag_item_id deben tener valor.
+
+    Si movement_type = usage para gas:
+      sale_id puede ser null.
+
+    No necesariamente tienes que imponerlo en dbdiagram, pero sí en tu backend.
+
+Veredicto
+
+Con solo agregar estas dos relaciones:
+
+Ref: InventoryItem.id < Supply.inventory_item_id
+Ref: InventoryItem.id < Bag.inventory_item_id
+
+tu modelo queda bastante completo y coherente.
+
+Ya tienes una buena separación entre:
+
+lo que vendes
+lo que cobras
+lo que compras
+lo que consumes
+lo que queda en inventario
+
+Para el tamaño del negocio que describes, está muy bien diseñado.
+
+"""
